@@ -36,6 +36,12 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 from scipy.signal import savgol_filter
 import scipy.fftpack
+import multiprocessing
+from multiprocessing import Pool
+from contextlib import closing
+from contextlib import contextmanager
+
+
 #
 #N = 100
 #x = np.linspace(0,2*np.pi,N)
@@ -142,22 +148,24 @@ class dataAna:
         #the attributes are then projected to primary principal components to identify relation among the attributes
         #the related attributes are used to identify the relations among them.
         
-        inputData=self.readInput()
+        starttime=datetime.datetime.now()
+        
+        self.inputData=self.readInput()
         
         self.processGraph()
         
         #print(inputData)
         
-        for x in inputData:
+        for x in self.inputData:
 #          #  print(savgol_filter(inputData[x],5,2))   
-            inputData[x]=savgol_filter(inputData[x],5,2)
+            self.inputData[x]=savgol_filter(self.inputData[x],5,2)
 #           # print(x)
             
 #        print(inputData)
         
         #print(inputData)
         #recieve the projection of attributes in the principal components
-        PCAdata=self.analyzer(inputData)
+        PCAdata=self.analyzer(self.inputData)
         
         #calculates the distance between individual attribues in the principal component space
       
@@ -191,18 +199,25 @@ class dataAna:
         
         
         #the function that finds the relation between the attributes by analyzing related variables
-        self.findRelation(degrees,closeVariables,inputData)
+        self.findRelation(degrees,closeVariables)
         
         if(os.path.exists(os.path.join(os.getcwd(),"Logs"))==False):
             os.mkdir("Logs")
         
         now =datetime.datetime.now()
         
+        diff=now-starttime
+        
+        diffmins=diff.total_seconds()/60
+        
         filename=str(now.month)+"_"+str(now.day)+"_"+str(now.year)+"_"+str(now.hour)+"_"+str(now.minute)+"_"+str(now.second)+"_.txt"
         with open(os.path.join("Logs",filename),'w') as fn:
             fn.write(str(now.month)+"/"+str(now.day)+"/"+str(now.year)+" "+str(now.hour)+":"+str(now.minute)+":"+str(now.second))
             fn.write('\n-----------------------------------------------\n')
-            fn.write("Data Size:"+str(len(inputData)))
+            fn.write("Data Size:"+str(len(self.inputData)))
+            fn.write("\n-----------------------------------------------\n")
+            fn.write("Time taken: "+str(diffmins))
+            fn.write("\n-----------------------------------------------\n")
             fn.write("Degrees tested: "+str(degrees))
             fn.write("\n-----------------------------------------------\n")
             fn.write("Possible relations among the attributes are:\n")
@@ -231,9 +246,140 @@ class dataAna:
         
         return self.distanceBetweenSensors[i][j]
         
-    def findRelation(self,degrees,closeVariables,inputData):
-        #the function finds relation between variables by checking combination of variables for degrees provided
+    def relationThread(self,combination,result,degree):
+        uniqueVariableCount=self.uniqueDict(combination)
+        uniqueVariableCount[result]=1
+        #temp=[x for x in tupCount.keys()]
+          
+        #generate temporary dataframe of the the variables under check
+        tempDf=self.inputData[[x for x in uniqueVariableCount.keys()]]    
+        flag=0
+        #iterate through the variables and generate the product of data for respective attributes
+        for var in uniqueVariableCount.keys():
+           if(var!=result):
+               for freq in range(uniqueVariableCount[var]):
+                    if(flag==0):
+                        tempDf['convertedOutput']=tempDf[var]
+                        flag=1
+                    else:
+                        tempDf['convertedOutput']*=tempDf[var]
         
+        
+        #find the average percent of difference between target variable and result of combination of related variables to target 
+        diff=0
+        for index,row in tempDf.iterrows():
+            diff+=abs(row[result]-row['convertedOutput'])/abs(row[result])                    
+        #check if the differnce between variables is less than 25 percent
+#                    print(tempDf)
+        if(diff/len(tempDf)<=0.25):
+            y=""
+            for x in combination:
+                y=y+x+"*"
+            y=y[0:len(y)-1]
+            #print(y+"="+result,diff/len(tempDf))
+            return(y+"="+result)
+        else:
+            
+            #checking if target has relation with square root of individual variables
+            for x in range(1,degree):
+                rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))
+                for rootVariable in rootVariables:
+                    rootVariableList=list(rootVariable)
+                    if(result in rootVariableList):
+                        continue
+                    flag=0
+                    for Variable in uniqueVariableCount:
+                        if(Variable in rootVariableList):
+                            rootVariableList.remove(Variable)
+                            if(flag==0):
+                                tempDf['convertedOutputRoot']=np.sqrt(tempDf[Variable])
+                                flag=1
+                            else:
+                                tempDf['convertedOutputRoot']*=np.sqrt(tempDf[Variable])
+                        else:
+                            if(flag==0):
+                                tempDf['convertedOutputRoot']=tempDf[Variable]
+                                flag=1
+                            else:
+                                tempDf['convertedOutputRoot']*=tempDf[Variable]
+            
+            
+                    diff=0
+                    for index,row in tempDf.iterrows():
+                        diff+=abs(row[result]-row['convertedOutputRoot'])/row[result]
+                    
+                    
+                    
+                    if(diff/len(tempDf)<=0.25):
+                        y=""
+                        rootVariableList=list(rootVariable)
+                        for x in uniqueVariableCount:
+                            if(x in rootVariableList):
+                                rootVariableList.remove(x)
+                                y=y+x+"^1/2"+"*"
+                            else:
+                                y=y+x+"*"
+                    
+                        y=y[0:len(y)-1]
+                        return(y+"="+result)
+            
+            for x in range(2,degree):
+                rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))
+                for rootVariable in rootVariables:
+                    rootVariableList=list(rootVariable)
+                    if(result in rootVariableList):
+                        continue
+                    flag=0
+                    for rv in rootVariableList:
+                        if(flag==0):
+                                tempDf['convertedOutputRootGroup']=tempDf[rv]
+                                flag=1
+                        else:
+                                tempDf['convertedOutputRootGroup']*=tempDf[rv]
+                    
+                    
+                    tempDf['convertedOutputRootGroup']=np.sqrt(tempDf['convertedOutputRootGroup'])
+                    
+                    for Variable in uniqueVariableCount:
+                        if(Variable in rootVariableList):
+                            rootVariableList.remove(Variable)
+                        else:
+                            tempDf['convertedOutputRootGroup']*=tempDf[Variable]
+           
+                    diff=0
+                    for index,row in tempDf.iterrows():
+                        diff+=abs(row[result]-row['convertedOutputRootGroup'])/row[result]
+                    
+                    
+                    if(diff/len(tempDf)<=0.25):
+                        y="("
+                        rootVariableList=list(rootVariable)
+                        for rv in rootVariableList:
+                            y=y+rv+"*"
+                        y=y[0:len(y)-1]
+                        y=y+")^1/2*"
+                        for x in uniqueVariableCount:
+                            if(x in rootVariableList):
+                                rootVariableList.remove(x)
+                            else:
+                                y=y+x+"*"
+                                
+                        y=y[0:len(y)-1]
+                        return (y+"="+result)
+        
+    def threadManager(self,args):
+        return self.relationThread(*args)
+
+    @contextmanager
+    def poolcontext(*args, **kwargs):
+        pool = multiprocessing.Pool(*args, **kwargs)
+        yield pool
+        pool.terminate()
+
+
+
+    def findRelation(self,degrees,closeVariables):
+        #the function finds relation between variables by checking combination of variables for degrees provided
         
         self.formulas=[]
         print(closeVariables.keys())
@@ -248,6 +394,7 @@ class dataAna:
                 combinations=itertools.combinations_with_replacement(closeVariables[result],degree)
                # combinationLength=len(combinations)
                 counter=1
+                cl=[]
                 for combination in combinations:
 #                    if('q3' not in combination or 'KIi' not in combination):
 #                        continue
@@ -263,126 +410,20 @@ class dataAna:
                    if(runFlag):
                         continue
                     
-                   uniqueVariableCount=self.uniqueDict(combination)
-                   uniqueVariableCount[result]=1
-                    #temp=[x for x in tupCount.keys()]
-                      
-                    #generate temporary dataframe of the the variables under check
-                   tempDf=inputData[[x for x in uniqueVariableCount.keys()]]    
-                   flag=0
-                    #iterate through the variables and generate the product of data for respective attributes
-                   for var in uniqueVariableCount.keys():
-                       if(var!=result):
-                           for freq in range(uniqueVariableCount[var]):
-                                if(flag==0):
-                                    tempDf['convertedOutput']=tempDf[var]
-                                    flag=1
-                                else:
-                                    tempDf['convertedOutput']*=tempDf[var]
-                    
-                    
-                    #find the average percent of difference between target variable and result of combination of related variables to target 
-                   diff=0
-                   for index,row in tempDf.iterrows():
-                        diff+=abs(row[result]-row['convertedOutput'])/abs(row[result])                    
-                    #check if the differnce between variables is less than 25 percent
-#                    print(tempDf)
-                   if(diff/len(tempDf)<=0.25):
-                        y=""
-                        for x in combination:
-                            y=y+x+"*"
-                        y=y[0:len(y)-1]
-                        #print(y+"="+result,diff/len(tempDf))
-                        self.formulas.append(y+"="+result)
+                   if(counter!=10):
+                       parameterList=(combination,result,degree)
+                       cl.append(parameterList)
+                       counter+=1
                    else:
-                        
-                        #checking if target has relation with square root of individual variables
-                        for x in range(1,degree):
-                            rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))
-                            for rootVariable in rootVariables:
-                                rootVariableList=list(rootVariable)
-                                if(result in rootVariableList):
-                                    continue
-                                flag=0
-                                for Variable in uniqueVariableCount:
-                                    if(Variable in rootVariableList):
-                                        rootVariableList.remove(Variable)
-                                        if(flag==0):
-                                            tempDf['convertedOutputRoot']=np.sqrt(tempDf[Variable])
-                                            flag=1
-                                        else:
-                                            tempDf['convertedOutputRoot']*=np.sqrt(tempDf[Variable])
-                                    else:
-                                        if(flag==0):
-                                            tempDf['convertedOutputRoot']=tempDf[Variable]
-                                            flag=1
-                                        else:
-                                            tempDf['convertedOutputRoot']*=tempDf[Variable]
-                        
-                        
-                                diff=0
-                                for index,row in tempDf.iterrows():
-                                    diff+=abs(row[result]-row['convertedOutputRoot'])/row[result]
-                                
-                                
-                                
-                                if(diff/len(tempDf)<=0.25):
-                                    y=""
-                                    rootVariableList=list(rootVariable)
-                                    for x in uniqueVariableCount:
-                                        if(x in rootVariableList):
-                                            rootVariableList.remove(x)
-                                            y=y+x+"^1/2"+"*"
-                                        else:
-                                            y=y+x+"*"
-                                
-                                    y=y[0:len(y)-1]
-                                    self.formulas.append(y+"="+result)
-                        
-                        for x in range(2,degree):
-                            rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))
-                            for rootVariable in rootVariables:
-                                rootVariableList=list(rootVariable)
-                                if(result in rootVariableList):
-                                    continue
-                                flag=0
-                                for rv in rootVariableList:
-                                    if(flag==0):
-                                            tempDf['convertedOutputRootGroup']=tempDf[rv]
-                                            flag=1
-                                    else:
-                                            tempDf['convertedOutputRootGroup']*=tempDf[rv]
-                                
-                                
-                                tempDf['convertedOutputRootGroup']=np.sqrt(tempDf['convertedOutputRootGroup'])
-                                
-                                for Variable in uniqueVariableCount:
-                                    if(Variable in rootVariableList):
-                                        rootVariableList.remove(Variable)
-                                    else:
-                                        tempDf['convertedOutputRootGroup']*=tempDf[Variable]
-                       
-                                diff=0
-                                for index,row in tempDf.iterrows():
-                                    diff+=abs(row[result]-row['convertedOutputRootGroup'])/row[result]
-                                
-                                
-                                if(diff/len(tempDf)<=0.25):
-                                    y="("
-                                    rootVariableList=list(rootVariable)
-                                    for rv in rootVariableList:
-                                        y=y+rv+"*"
-                                    y=y[0:len(y)-1]
-                                    y=y+")^1/2*"
-                                    for x in uniqueVariableCount:
-                                        if(x in rootVariableList):
-                                            rootVariableList.remove(x)
-                                        else:
-                                            y=y+x+"*"
-                                            
-                                    y=y[0:len(y)-1]
-                                    self.formulas.append(y+"="+result)
-        
+                       with closing(Pool(10)) as pool:	
+                           formulas=pool.map(self.threadManager, cl)
+                       cl=[]
+                       counter=0
+                       for formula in formulas:
+                           if(formula)!="":
+                               self.formulas.append(formula)
+                      
+                           
         self.formulas=list(set(self.formulas))
         
         
