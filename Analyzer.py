@@ -32,36 +32,45 @@ from sklearn.decomposition import PCA
 import numpy as np
 import itertools
 import warnings
-import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 from scipy.signal import savgol_filter
-import scipy.fftpack
 import multiprocessing
 from multiprocessing import Pool
 from contextlib import closing
 from contextlib import contextmanager
 
+import copy_reg
+import types
 
-#
-#N = 100
-#x = np.linspace(0,2*np.pi,N)
-#y = np.sin(x) + np.random.random(N) * 0.2
-#
-#w = scipy.fftpack.rfft(y)
-#f = scipy.fftpack.rfftfreq(N, x[1]-x[0])
-#spectrum = w**2
-#
-#cutoff_idx = spectrum < (spectrum.max()/5)
-#w2 = w.copy()
-#w2[cutoff_idx] = 0
-#
-#y2 = scipy.fftpack.irfft(w2)
+def threadResolver(method):
+    if method.im_self is None:
+        return getattr, (method.im_class, method.im_func.func_name)
+    else:
+        return getattr, (method.im_self, method.im_func.func_name)
+
+copy_reg.pickle(types.MethodType, threadResolver)
+
+
 
 class dataAna:
 
-    def __init__(self,filepath,graphFilePath):
-        self.filepath=filepath
-        self.graphFilePath=graphFilePath
+    def __init__(self,configurationFilePath):
+        with open(configurationFilePath,"r")  as jsonFile:
+            configurationFile=json.load(jsonFile)
+            self.filepath=configurationFile['input-file-path']
+            self.graphFilePath=configurationFile['graph-file-location']
+            if 'max-threads' in configurationFile:
+                self.maxThreads=configurationFile['max-threads']
+            else:
+                self.maxThreads=10
+            if 'max-distance-between-sensors' in configurationFile:
+                self.maxDistance=configurationFile['max-distance-between-sensors']
+            else:
+                self.maxDistance=3
+            if 'degrees' in configurationFile:
+                self.degrees=configurationFile['degrees']
+            else:
+                self.degrees=[2]
         self.distanceBetweenSensors=[]
         
     def readInput(self):
@@ -195,11 +204,10 @@ class dataAna:
         print(closeVariables)
     
         #degrees is used to specify the different degrees of equation that need to be checked 
-        degrees=[2]
         
         
         #the function that finds the relation between the attributes by analyzing related variables
-        self.findRelation(degrees,closeVariables)
+        self.findRelation(closeVariables)
         
         if(os.path.exists(os.path.join(os.getcwd(),"Logs"))==False):
             os.mkdir("Logs")
@@ -218,7 +226,7 @@ class dataAna:
             fn.write("\n-----------------------------------------------\n")
             fn.write("Time taken: "+str(diffmins))
             fn.write("\n-----------------------------------------------\n")
-            fn.write("Degrees tested: "+str(degrees))
+            fn.write("Degrees tested: "+str(self.degrees))
             fn.write("\n-----------------------------------------------\n")
             fn.write("Possible relations among the attributes are:\n")
             for formula in self.formulas:
@@ -366,6 +374,7 @@ class dataAna:
                                 
                         y=y[0:len(y)-1]
                         return (y+"="+result)
+        return ""
         
     def threadManager(self,args):
         return self.relationThread(*args)
@@ -378,13 +387,13 @@ class dataAna:
 
 
 
-    def findRelation(self,degrees,closeVariables):
+    def findRelation(self,closeVariables):
         #the function finds relation between variables by checking combination of variables for degrees provided
         
         self.formulas=[]
         print(closeVariables.keys())
         #iterate through different degrees
-        for degree in degrees:
+        for degree in self.degrees:
             print(degree)
             for result in closeVariables.keys():
 #                if(result!='q4'):
@@ -403,25 +412,33 @@ class dataAna:
                     # print(counter,"/",combinationLength," processed for ",result," in ",degree)
                    runFlag=0
                    for x in combination:
-                        if(self.combinationDistance(x,result)>4):
+                        if(self.combinationDistance(x,result)>self.maxDistance):
                             runFlag=1
                             break
                     
                    if(runFlag):
                         continue
                     
-                   if(counter!=10):
+                   if(counter!=self.maxThreads):
                        parameterList=(combination,result,degree)
                        cl.append(parameterList)
                        counter+=1
                    else:
-                       with closing(Pool(10)) as pool:	
+                       with closing(Pool(self.maxThreads)) as pool:	
                            formulas=pool.map(self.threadManager, cl)
                        cl=[]
                        counter=0
                        for formula in formulas:
                            if(formula)!="":
                                self.formulas.append(formula)
+                if(cl):
+                    with closing(Pool(len(cl))) as pool:	
+                           formulas=pool.map(self.threadManager, cl)
+                    cl=[]
+                    counter=0
+                    for formula in formulas:
+                        if(formula)!="":
+                            self.formulas.append(formula)
                       
                            
         self.formulas=list(set(self.formulas))
@@ -440,7 +457,6 @@ class dataAna:
               
         # Normalization of data
         dataNorm = (inputData - inputData.mean()) / inputData.std()
-        print(type(dataNorm['Kinj'][0]))
         # PCA
         pca = PCA(n_components=10)
         pca.fit_transform(dataNorm.values)
@@ -455,13 +471,13 @@ class dataAna:
 
 if __name__=='__main__':
     try:
-        filepath=sys.argv[1]
-        distanceFile=sys.argv[2]
+        configurationFile=sys.argv[1]
+#        distanceFile=sys.argv[2]
     except:
         print("")
-        print("Usage: analyzer_comb.py <filepath>")
+        print("Usage: analyzer_comb.py <configurationFilePath>")
         exit() 
     
-    analyzerObject=dataAna(filepath,distanceFile)
+    analyzerObject=dataAna(configurationFile)
     analyzerObject.dataAnalyzer()
     
