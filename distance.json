@@ -1,0 +1,13 @@
+{
+	"fpg2":{"fqg":3,"q1":2,"fsg":4,"fsgr":2,"fagr":3,"fprgout":2,"_96hql":4},
+	"p3":{"fpg2":4,"q1":2,"q2":3,"q3":2,"q4":3,"fsg":4,"Kinj":4,"cpa":4},
+	"fqg":{"p3":3,"q1":2,"fsg":3,"Kldash":3},
+	"q1":{"fsg":2,"Kldash":2},
+	"q2":{"q3":2,"q4":3,"Kinj":4,"cpa":4,"KI":4},
+	"q3":{"q4":3,"Kinj":2,"cpa":2,"KI":2,"KIi":4},
+	"q4":{"Kinj":3,"cpa":3,"KI":3,"KIi":2},
+	"fsg":{"_96hql":2,"fsrout":2},
+	"fsgr":{"fagr":2,"fprgout":2,"_96hql":2},
+	"fag":{"fsg":2,"_96hql":2},
+	"fagr":{"_96hql":2}
+}
