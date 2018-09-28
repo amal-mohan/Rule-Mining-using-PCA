@@ -5,19 +5,16 @@ Created on Wed Jul 25 11:54:40 2018
 
 @author: amal
 """
-
-# noise introduction and removal-check type of noise in data - noise removal packages--check 
+ 
 # work more on input data generation
 # increase intensity of noise 
 # timestamp based data work on that
 # rare input variable not functioning
 # make everything gaussian 
 # confidence check for every interval check if the result changes, if not we can confirm to sample data
+# clustering of input sources
 
 #steps for input
-# generate data through gaussian-numpy
-# calculate the dependent variables using data
-# introduce the noise to data
 # missing values of input
 
 import datetime
@@ -286,8 +283,7 @@ class dataAna:
             y=y[0:len(y)-1]
             #print(y+"="+result,diff/len(tempDf))
             return(y+"="+result)
-        else:
-            
+        else: 
             #checking if target has relation with square root of individual variables
             for x in range(1,degree):
                 rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))

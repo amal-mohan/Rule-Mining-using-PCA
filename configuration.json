@@ -1,0 +1,7 @@
+{
+"max-threads":10,
+"max-distance-between-sensors":4,
+"graph-file-location":"distance.json",
+"input-file-path":"data.csv",
+"degrees":[2]
+}
