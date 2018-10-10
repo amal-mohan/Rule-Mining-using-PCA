@@ -7,6 +7,8 @@ Created on Wed Jul 25 11:54:40 2018
 """
  
 # work more on input data generation
+    # remove randomization from input data generation
+    # add randomization to data generator
 # increase intensity of noise 
 # timestamp based data work on that
 # rare input variable not functioning
