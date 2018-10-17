@@ -76,9 +76,11 @@ class dataAna:
         #reads input data
         #interpolates the missing values and drop not available values
         inputData=panda.read_csv(self.filepath)
-        inputData=inputData.interpolate(method='nearest')
+        for x in inputData:
+            inputData=inputData.interpolate(method='linear')
         inputData.dropna(inplace=True)
         inputData.reset_index(drop=True,inplace=True)
+        inputData=inputData.drop("time",axis=1)
         return inputData
         
     def pointsDistance(self,x1,y1,x2,y2):

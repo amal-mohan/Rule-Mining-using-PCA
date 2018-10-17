@@ -62,19 +62,7 @@ class dataGen:
             KITemp=self.sortBitonic(KITemp,mean)
             KldashTemp=self.sortBitonic(KldashTemp,mean)
             p3Temp=self.sortBitonic(p3Temp,mean)
-            
-        
-                        
-            
-#            fprgoutTemp=self.lowerBound
-#            _96hqlTemp=self.lowerBound
-#            fsroutTemp=self.lowerBound
-#            KinjTemp=self.lowerBound
-#            cpaTemp=self.lowerBound
-#            KITemp=self.lowerBound
-#            KIiTemp=self.lowerBound
-#            KldashTemp=self.lowerBound
-#            p3Temp=self.lowerBound
+
             fprgoutCount=0
             _96hqlCount=0
             fsroutCount=0
@@ -85,120 +73,25 @@ class dataGen:
             cpaCount=0
             KldashCount=0
             for i in range(0,self.dataSize):
-            #while(KldashCount!=self.dataSize or cpaCount!=self.dataSize or p3Count!=self.dataSize or fprgoutCount!=self.dataSize or _96hqlCount!=self.dataSize or fsroutCount!=self.dataSize or KinjCount!=self.dataSize or KICount!=self.dataSize or KIiCount!=self.dataSize):
-#                fprgout=random.uniform(self.lowerBound,self.upperBound)
-#                fpg2=self.f(fprgout)
-#                p3=random.uniform(p3Temp,fpg2)
-#                cpa=random.uniform(cpaTemp,p3)
-#                Kldash=random.uniform(KldashTemp,p3)
-#                _96hql=random.uniform(_96hqlTemp,self.upperBound)
-#                fsrout=random.uniform(fsroutTemp,self.upperBound)
-#                Kinj=random.uniform(KinjTemp,self.upperBound)
-#                KI=random.uniform(KITemp,self.upperBound)
-#                KIi=random.uniform(KIiTemp,self.upperBound)
-#                fprgoutCount+=1
-#                _96hqlCount+=1
-#                fsroutCount+=1
-#                KinjCount+=1
-#                KICount+=1
-#                KIiCount+=1
-                
-             #   if(random.randint(0,1) and cpaCount!=self.dataSize):
+
                  cpa=cpaTemp[cpaCount]
                  cpaCount+=1
-                #else:
-                 #   cpa=""
-                #if(random.randint(0,1) and p3Count!=self.dataSize):
                  p3=p3Temp[p3Count]
                  p3Count+=1
-                #else:
-                 #   p3=""
-                #if(random.randint(0,1) and KldashCount!=self.dataSize):
                  Kldash=KldashTemp[KldashCount]
                  KldashCount+=1
-                #else:
-                 #   Kldash=""
-                #if(random.randint(0,1) and fprgoutCount!=self.dataSize):
                  fprgout=fprgoutTemp[fprgoutCount]
-                    
-#                    if(fprgoutCount<self.dataSize/2):
-#                        fprgout=random.uniform(fprgoutTemp,self.upperBound)
-#                        fprgoutTemp=fprgout
-#                        fpg2=self.f(fprgout)#R11
-#                        p3=random.uniform(p3Temp,fpg2)
-#                        p3Temp=p3
-#                        cpa=random.uniform(cpaTemp,p3)
-#                        cpaTemp=cpa
-#                        Kldash=random.uniform(KldashTemp,p3)
-#                        KldashTemp=Kldash
-#                    else:
-#                        fprgout=random.uniform(self.lowerBound,fprgoutTemp)
-#                        fpg2=self.f(fprgout)#R11
-#                        p3=random.uniform(self.lowerBound,fpg2)
-#                        cpa=random.uniform(self.lowerBound,p3Temp)
-#                        Kldash=random.uniform(self.lowerBound,p3Temp)
-#                        fprgoutTemp=fprgout
-#                        p3Temp=p3
-#                        cpaTemp=cpa
-#                        KldashTemp=Kldash
                  fprgoutCount+=1
-                #else:
-                 #   fprgout=""
-                #if(random.randint(0,1) and _96hqlCount!=self.dataSize):
                  _96hql=_96hqlTemp[_96hqlCount]
-#                    if(_96hqlCount<self.dataSize/2):
-#                        _96hql=random.uniform(_96hqlTemp,self.upperBound)
-#                        _96hqlTemp=_96hql
-#                    else:
-#                        _96hql=random.uniform(self.lowerBound,_96hqlTemp)
-#                        _96hqlTemp=_96hql
                  _96hqlCount+=1
-                #else:
-                 #   _96hql=""
-                #if(random.randint(0,1) and fsroutCount!=self.dataSize):
                  fsrout=fsroutTemp[fsroutCount]
-#                    if(fsroutCount<self.dataSize/2):
-#                        fsrout=random.uniform(fsroutTemp,self.upperBound)
-#                        fsroutTemp=fsrout
-#                    else:
-#                        fsrout=random.uniform(self.lowerBound,fsroutTemp)
-#                        fsroutTemp=fsrout
                  fsroutCount+=1
-                #else:
-                 #   fsrout=""
-                #if(random.randint(0,1) and KinjCount!=self.dataSize):
                  Kinj=KinjTemp[KinjCount]
-#                    if(KinjCount<self.dataSize/2):
-#                        Kinj=random.uniform(KinjTemp,self.upperBound)
-#                        KinjTemp=Kinj
-#                    else:
-#                        Kinj=random.uniform(self.lowerBound,KinjTemp)
-#                        KinjTemp=Kinj
                  KinjCount+=1
-                #else:
-                 #   Kinj=""
-                #if(random.randint(0,1) and KICount!=self.dataSize):
                  KI=KITemp[KICount]
-#                    if(KICount<self.dataSize/2):
-#                        KI=random.uniform(KITemp,self.upperBound)
-#                        KITemp=KI
-#                    else:
-#                        KI=random.uniform(self.lowerBound,KITemp)
-#                        KITemp=KI
                  KICount+=1
-                #else:
-                 #   KI=""
-                #if(random.randint(0,1) and KIiCount!=self.dataSize):
                  KIi=KIiTemp[KIiCount]
-#                    if(KIiCount<self.dataSize/2):
-#                        KIi=random.uniform(KIiTemp,self.upperBound)
-#                        KIiTemp=KIi
-#                    else:
-#                        KIi=random.uniform(self.lowerBound,KIiTemp)
-#                        KIiTemp=KIi
                  KIiCount+=1
-#                else:
-#                    KIi=""
                  data['fprgout']=fprgout
                  data['_96hql']=_96hql
                  data['fsrout']=fsrout
