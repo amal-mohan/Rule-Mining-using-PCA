@@ -6,15 +6,10 @@ Created on Wed Jul 25 11:54:40 2018
 @author: amal
 """
  
-# work more on input data generation
-    # remove randomization from input data generation
-    # add randomization to data generator
-# increase intensity of noise 
-# timestamp based data work on that
-# rare input variable not functioning
-# make everything gaussian 
-# confidence check for every interval check if the result changes, if not we can confirm to sample data
-# clustering of input sources
+#time of pca and full process--adjustment
+#accuracy think
+#performance improvement
+#get more data for more testing
 
 #steps for input
 # missing values of input
@@ -23,8 +18,6 @@ import datetime
 import json
 import math
 import os
-#from time import sleep
-#import os
 import sys
 import pandas as panda
 from sklearn.decomposition import PCA
@@ -49,15 +42,39 @@ def threadResolver(method):
 
 copy_reg.pickle(types.MethodType, threadResolver)
 
-
+#implemented only for multiplication, generalization requires changes
+class expression:
+    
+    def __init__(self,listOfAttributes,result,exp):
+        self.listofAttributes=listOfAttributes
+        self.result=result
+        self.exp=exp
+        self.attributeSet={}
+        self.sortAttributes()
+    
+    def sortAttributes(self):
+        for attribute in self.listofAttributes:
+            if(attribute in self.attributeSet):
+                self.attributeSet[attribute]+=1
+            else:
+                self.attributeSet[attribute]=1
+       
+        
 
 class dataAna:
 
     def __init__(self,configurationFilePath):
+        self.recall=0
         with open(configurationFilePath,"r")  as jsonFile:
             configurationFile=json.load(jsonFile)
             self.filepath=configurationFile['input-file-path']
             self.graphFilePath=configurationFile['graph-file-location']
+            self.masterformulasLocation=configurationFile['orginal-formulas-list']
+            self.approach=configurationFile['approach']
+            if 'graph-use' in configurationFile:
+                self.graphuse=configurationFile['graph-use']
+            else:
+                self.graphuse=1
             if 'max-threads' in configurationFile:
                 self.maxThreads=configurationFile['max-threads']
             else:
@@ -87,9 +104,12 @@ class dataAna:
         # calculates the eucledian distance between input distance
         a=abs(math.degrees(math.atan(y2/x2)))
         b=abs(math.degrees(math.atan(y1/x1)))
-        print(a,b)
+#        x=abs(x1-x2)
+#        y=abs(y1-y2)
+       # print(a,b)
         return abs(a-b)
-        
+#        return x+y
+    
     def processGraph(self):
         V=set()
         with open(self.graphFilePath,"r")  as jsonFile:
@@ -116,7 +136,6 @@ class dataAna:
                 j=self.vertexMap[nearNode]
                 self.distanceBetweenSensors[i][j]=graph[vertex][nearNode]
                 self.distanceBetweenSensors[j][i]=graph[vertex][nearNode]
-        
         for k in range(0,self.noOfVertex):
             for i in range(0,self.noOfVertex):
                 for j in range(0,self.noOfVertex):
@@ -129,7 +148,7 @@ class dataAna:
         #this method discovers closely associated variables which can be analyzed further
         closeVariables={}
         for x in distanceMatrix.keys():
-            if(distanceMatrix[x]<=40 or distanceMatrix[x]>=320):
+            if(distanceMatrix[x]<=10 or distanceMatrix[x]>=350):
                 variables=x.split('&&')
                 if(variables[0] not in closeVariables):
                     closeVariables[variables[0]]=[]
@@ -142,6 +161,33 @@ class dataAna:
                 else:
                     closeVariables[variables[1]].append(variables[0])
         return closeVariables
+
+    def getCloselyCorreleatedVariables(self,PCAdata):
+               #calculates the distance between individual attribues in the principal component space
+      
+        distanceMatrix={}   
+        count=0
+        distanceSum=0
+        
+        for a in range(len(PCAdata["0"])):
+            for b in range(a,len(PCAdata["0"])):
+                #print(PCAdata.index[a],PCAdata.index[b])
+                if(PCAdata.index[a]!=PCAdata.index[b]):
+                    count+=1
+                    distance=self.pointsDistance(PCAdata["0"][a],PCAdata["1"][a],PCAdata["0"][b],PCAdata["1"][b])
+                    distanceSum+=distance
+                    distanceMatrix[PCAdata.index[a]+"&&"+PCAdata.index[b]]=distance        
+        
+        averageDistance=distanceSum/count
+        
+        
+        
+        #identifies the closely related attributes(lesser distance between them in principal component space)
+        closeVariables=self.calculateCloselyCorrealtedVariables(averageDistance,distanceMatrix)
+        
+  #      print(closeVariables)
+        
+        return closeVariables
         
     def uniqueDict(self,tup):
         #returns a dictionary with unique values from tuples and frequency of each value
@@ -153,6 +199,81 @@ class dataAna:
                 result[x]=1
         return result
     
+    
+    def approachA(self):
+        self.PCAstarttime=datetime.datetime.now()
+        PCAdata=self.analyzer(self.inputData)
+        self.PCAendtime=datetime.datetime.now()
+ 
+
+    
+        #degrees is used to specify the different degrees of equation that need to be checked 
+        
+        closeVariables=self.getCloselyCorreleatedVariables(PCAdata)
+        
+        #the function that finds the relation between the attributes by analyzing related variables
+        self.findRelation(closeVariables)
+
+    
+    def approachB(self):
+        self.PCAendtime=datetime.datetime.now()
+        self.PCAstarttime=datetime.datetime.now()
+        self.formulas=[]
+        comb=[]
+        fields=self.inputData.keys()
+        for degree in self.degrees:
+            combinations=itertools.combinations_with_replacement(fields,degree)
+            
+            for combination in combinations:
+                name=""
+                for x in combination:               
+                    name=name+x+"*"
+                
+                name=name[0:len(name)-1]
+
+                comb.append(name)
+                flag=0
+                for x in combination:
+                    if(flag==0):
+                        self.inputData[name]=self.inputData[x]
+                    else:
+                        self.inputData[name]*=self.inputData[x] 
+                        
+        
+#        print(self.inputData)
+        
+        PCAdata=self.analyzer(self.inputData)
+        
+        for a in range(len(PCAdata["0"])):
+            print(PCAdata["0"][a],PCAdata["1"][a])
+#            print(PCAdata["0"],PCAdata["1"])
+        
+        closeVariables=self.getCloselyCorreleatedVariables(PCAdata)
+        form=[]
+        i=0
+
+        for x in comb:
+            if(x in closeVariables):
+    #            print(x)
+                #print(closeVariables[x])
+                xRelated=closeVariables[x]
+                for y in xRelated:
+                    if(y not in comb  and y not in x.split("*")):
+                        
+                        diff=0
+ #                       print(i)
+                        i=i+1
+#                        for index,row in self.inputData.iterrows():
+#                            diff+=abs(row[y]-row[x])/abs(row[y])                    
+#                        
+#                        if(diff/len(self.inputData)<=0.25):
+                        form.append(x+"="+y)    
+#        print(comb)
+#        print(form)
+                    
+               
+        
+        
     def dataAnalyzer(self):
         #the core funtion which conducts PCA on the variables and calculate the principal components
         #the attributes are then projected to primary principal components to identify relation among the attributes
@@ -167,48 +288,10 @@ class dataAna:
         #print(inputData)
         
         for x in self.inputData:
-#          #  print(savgol_filter(inputData[x],5,2))   
             self.inputData[x]=savgol_filter(self.inputData[x],5,2)
-#           # print(x)
-            
-#        print(inputData)
-        
-        #print(inputData)
         #recieve the projection of attributes in the principal components
-        PCAdata=self.analyzer(self.inputData)
         
-        #calculates the distance between individual attribues in the principal component space
-      
-        distanceMatrix={}
-        count=0
-        distanceSum=0
-        
-        for a in range(len(PCAdata["0"])):
-            for b in range(a,len(PCAdata["0"])):
-                #print(PCAdata.index[a],PCAdata.index[b])
-                if(PCAdata.index[a]!=PCAdata.index[b]):
-                    count+=1
-                    distance=self.pointsDistance(PCAdata["0"][a],PCAdata["1"][a],PCAdata["0"][b],PCAdata["1"][b])
-                    distanceSum+=distance
-                    distanceMatrix[PCAdata.index[a]+"&&"+PCAdata.index[b]]=distance
-        
-        
-        averageDistance=distanceSum/count
-        
-#        print(averageDistance)
- #       print(distanceMatrix)
-        
-        
-        #identifies the closely related attributes(lesser distance between them in principal component space)
-        closeVariables=self.calculateCloselyCorrealtedVariables(averageDistance,distanceMatrix)
-        
-        print(closeVariables)
-    
-        #degrees is used to specify the different degrees of equation that need to be checked 
-        
-        
-        #the function that finds the relation between the attributes by analyzing related variables
-        self.findRelation(closeVariables)
+        self.approachA()
         
         if(os.path.exists(os.path.join(os.getcwd(),"Logs"))==False):
             os.mkdir("Logs")
@@ -219,13 +302,21 @@ class dataAna:
         
         diffmins=diff.total_seconds()/60
         
+        PCAdatatime=self.PCAendtime-self.PCAstarttime
+        
+        diffPCA=PCAdatatime.total_seconds()/60
+        
+ #       self.caculateAccuracy()
+        
         filename=str(now.month)+"_"+str(now.day)+"_"+str(now.year)+"_"+str(now.hour)+"_"+str(now.minute)+"_"+str(now.second)+"_.txt"
         with open(os.path.join("Logs",filename),'w') as fn:
             fn.write(str(now.month)+"/"+str(now.day)+"/"+str(now.year)+" "+str(now.hour)+":"+str(now.minute)+":"+str(now.second))
             fn.write('\n-----------------------------------------------\n')
             fn.write("Data Size:"+str(len(self.inputData)))
             fn.write("\n-----------------------------------------------\n")
-            fn.write("Time taken: "+str(diffmins))
+            fn.write("Total PCA Time: "+str(diffPCA))
+            fn.write("\n-----------------------------------------------\n")
+            fn.write("Total Time taken: "+str(diffmins))
             fn.write("\n-----------------------------------------------\n")
             fn.write("Degrees tested: "+str(self.degrees))
             fn.write("\n-----------------------------------------------\n")
@@ -234,6 +325,7 @@ class dataAna:
                 fn.write(formula)
                 fn.write("\n")
             fn.write("----------------------------------------------\n")
+            fn.write("Recall:"+str(self.recall))
             fn.close()
         
         
@@ -246,7 +338,24 @@ class dataAna:
             
         #print(list(set(self.formulas))) 
                     #square root get combination of tuple and root the values of combination
-            
+        
+    def caculateAccuracy(self):
+        masterFormulas=self.masterFormulaList()
+        inter=self.intersection(self.formulas,masterFormulas)
+        if(len(inter)==0):
+            self.recall=0
+        else:
+            self.recall=len(inter)/len(masterFormulas)
+    
+    def intersection(self,list1,list2):
+        temp=set(list2)
+        res=[i for i in list1 if i in temp]
+        return res
+    
+    def masterFormulaList(self):
+        
+        return
+    
     def combinationDistance(self,attribute1,attribute2):
         if(attribute1 not in self.vertexMap or attribute2 not in self.vertexMap):
             return 10000
@@ -258,7 +367,6 @@ class dataAna:
     def relationThread(self,combination,result,degree):
         uniqueVariableCount=self.uniqueDict(combination)
         uniqueVariableCount[result]=1
-        #temp=[x for x in tupCount.keys()]
           
         #generate temporary dataframe of the the variables under check
         tempDf=self.inputData[[x for x in uniqueVariableCount.keys()]]    
@@ -274,19 +382,25 @@ class dataAna:
                         tempDf['convertedOutput']*=tempDf[var]
         
         
-        #find the average percent of difference between target variable and result of combination of related variables to target 
+            
         diff=0
+        #find the average percent of difference between target variable and result of combination of related variables to target 
         for index,row in tempDf.iterrows():
             diff+=abs(row[result]-row['convertedOutput'])/abs(row[result])                    
         #check if the differnce between variables is less than 25 percent
 #                    print(tempDf)
+#        attributeList=[]
+
+#        if(df[result].corr(df['convertedOutput'])>0.90):
+#            corre=df[result].corr(df['convertedOutput'])
         if(diff/len(tempDf)<=0.25):
             y=""
             for x in combination:
                 y=y+x+"*"
+#                attributeList.append((x,1))
             y=y[0:len(y)-1]
-            #print(y+"="+result,diff/len(tempDf))
-            return(y+"="+result)
+            return (y+"="+str(tempDf[result].corr(tempDf['convertedOutput']))+result)
+        #expression(attributeList,result,"*") #(y+"="+result)
         else: 
             #checking if target has relation with square root of individual variables
             for x in range(1,degree):
@@ -317,7 +431,8 @@ class dataAna:
                         diff+=abs(row[result]-row['convertedOutputRoot'])/row[result]
                     
                     
-                    
+#                    if(df[result].corr(df['converterdOutput'])>0.90):
+              
                     if(diff/len(tempDf)<=0.25):
                         y=""
                         rootVariableList=list(rootVariable)
@@ -327,10 +442,9 @@ class dataAna:
                                 y=y+x+"^1/2"+"*"
                             else:
                                 y=y+x+"*"
-                    
                         y=y[0:len(y)-1]
-                        return(y+"="+result)
-            
+                        return(y+"="+str(tempDf[result].corr(tempDf['convertedOutputRoot']))+result)
+                        
             for x in range(2,degree):
                 rootVariables=list(itertools.combinations_with_replacement(uniqueVariableCount,x))
                 for rootVariable in rootVariables:
@@ -345,7 +459,7 @@ class dataAna:
                         else:
                                 tempDf['convertedOutputRootGroup']*=tempDf[rv]
                     
-                    
+            
                     tempDf['convertedOutputRootGroup']=np.sqrt(tempDf['convertedOutputRootGroup'])
                     
                     for Variable in uniqueVariableCount:
@@ -357,8 +471,9 @@ class dataAna:
                     diff=0
                     for index,row in tempDf.iterrows():
                         diff+=abs(row[result]-row['convertedOutputRootGroup'])/row[result]
-                    
-                    
+                   
+#                    if(df[result].corr(df['converterdOutput'])>0.90):
+     
                     if(diff/len(tempDf)<=0.25):
                         y="("
                         rootVariableList=list(rootVariable)
@@ -373,7 +488,7 @@ class dataAna:
                                 y=y+x+"*"
                                 
                         y=y[0:len(y)-1]
-                        return (y+"="+result)
+                        return (y+"="+str(tempDf[result].corr(tempDf['convertedOutputRootGroup']))+result)
         return ""
         
     def threadManager(self,args):
@@ -385,19 +500,14 @@ class dataAna:
         yield pool
         pool.terminate()
 
-
-
     def findRelation(self,closeVariables):
         #the function finds relation between variables by checking combination of variables for degrees provided
-        
         self.formulas=[]
         print(closeVariables.keys())
         #iterate through different degrees
         for degree in self.degrees:
             print(degree)
             for result in closeVariables.keys():
-#                if(result!='q4'):
-#                    continue
                 print(result)
                 #generate combinations of variables related to every variable
                 combinations=itertools.combinations_with_replacement(closeVariables[result],degree)
@@ -405,14 +515,9 @@ class dataAna:
                 counter=1
                 cl=[]
                 for combination in combinations:
-#                    if('q3' not in combination or 'KIi' not in combination):
-#                        continue
-                    #get dictionary of type {unique_variable:frequency}
-                   #print(combination)
-                    # print(counter,"/",combinationLength," processed for ",result," in ",degree)
                    runFlag=0
                    for x in combination:
-                        if(self.combinationDistance(x,result)>self.maxDistance):
+                        if(self.combinationDistance(x,result)>self.maxDistance and self.graphuse==1):
                             runFlag=1
                             break
                     
@@ -458,6 +563,7 @@ class dataAna:
         # Normalization of data
         dataNorm = (inputData - inputData.mean()) / inputData.std()
         # PCA
+#        print dataNorm
         pca = PCA(n_components=10)
         pca.fit_transform(dataNorm.values)
         
@@ -465,14 +571,13 @@ class dataAna:
         cols = [str(x) for x in range(len(panda.Series(pca.explained_variance_ratio_)))]
         
         relationMatrix = panda.DataFrame(pcaTranspose, columns=cols, index=dataNorm.columns)
-#        
+#        print(relationMatrix)
         return relationMatrix
-#
+
 
 if __name__=='__main__':
     try:
         configurationFile=sys.argv[1]
-#        distanceFile=sys.argv[2]
     except:
         print("")
         print("Usage: analyzer_comb.py <configurationFilePath>")

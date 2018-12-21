@@ -3,5 +3,6 @@
 "max-distance-between-sensors":4,
 "graph-file-location":"distance.json",
 "input-file-path":"data.csv",
-"degrees":[2]
+"degrees":[2],
+"approach":"A"
 }
